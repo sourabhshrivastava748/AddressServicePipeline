@@ -781,19 +781,19 @@ object AddressServicePipeline {
       println("Starting PII handling, servername: " + servername + " serverDF.count(): " + serverDF.count())
       val condition =  col("mobile").isNotNull and col("mobile").startsWith("cipher:")
       val encryptedDF = serverDF.filter(condition)
-      println("encryptedDF.count() " + encryptedDF.count())
+      println("servername: " + servername + "encryptedDF.count() " + encryptedDF.count())
       val plainDF = serverDF.filter(!condition)
-      println("plainDF.count() " + plainDF.count())
+      println("servername: " + servername + "plainDF.count() " + plainDF.count())
 
       var decryptedDF = sparkSession.emptyDataset[UniwareShippingPackage]
       if(encryptedDF.isEmpty == false) {
         decryptedDF = decryptionProcessing(encryptedDF)
-        println("decryptedDF.count() " + decryptedDF.count())
+        println("servername: " + servername + "decryptedDF.count() " + decryptedDF.count())
       }
 
       val postUnionDF = plainDF.union(decryptedDF)
-      println("postUnionDF.count() " + postUnionDF.count())
-      println("completed PII handling, going for transformWrite")
+      println("servername: " + servername + "postUnionDF.count() " + postUnionDF.count())
+      println("servername: " + servername + "completed PII handling, going for transformWrite")
       transformWrite(postUnionDF, spark, pincodeBroadcast, servername)
     }
 

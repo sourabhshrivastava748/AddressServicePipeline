@@ -83,7 +83,7 @@ import scala.collection.mutable.{ArrayBuffer, ListBuffer}
     val clientToPassword: collection.mutable.Map[String, String] = {
       val map = collection.mutable.Map[String, String]()
       println("Inside [PIIVaultConfig] populating clientToPassword")
-      val lines = Source.fromFile("active_tenant.txt").getLines
+      val lines = Source.fromFile("/spark/deployment/target/active_tenant.txt").getLines
       lines.foreach(line => {
         val lineArr = line.split(":",2)(1).split(":")
         map.put(lineArr(0), lineArr(1))

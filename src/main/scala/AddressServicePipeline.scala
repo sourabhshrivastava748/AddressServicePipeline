@@ -573,7 +573,7 @@ object AddressServicePipeline {
     def writeOverJDBC(sparkSession: SparkSession, validAddWithMappedValidMobileOrEmail: Dataset[ExplodedUniwareShippingPackage]) = {
       val destJDBCURL: String = "jdbc:mysql://db.address.unicommerce.infra:3306?useSSL=false&useServerPrepStmts=false&rewriteBatchedStatements=true&enabledTLSProtocols=TLSv1.3"
       val batchSizeForJDBCWrite = "50000"
-      val destTable: String = "turbo.shipping_package_address_test"
+      val destTable: String = "turbo.shipping_package_address"
       val destDBUserName: String = "developer"
       val destDBPassword: String = "DevelopeR@4#"
       val flattenedDF: DataFrame = validAddWithMappedValidMobileOrEmail.select("enabled", "turbo_created", "turbo_updated", "turbo_mobile", "turbo_email", "uniwareShippingPackage.*").drop(Array("mobile", "email", "notification_mobile", "notification_email"): _*)

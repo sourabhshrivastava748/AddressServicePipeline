@@ -34,7 +34,7 @@ import org.apache.commons.codec.binary.Base64
 import org.apache.spark.sql.functions.udf
 import org.springframework.http.HttpStatus
 
-import java.io.{IOException, Serializable}
+import java.io.{FileNotFoundException, IOException, Serializable}
 import java.util
 import scala.collection.Seq
 import scala.io.Source
@@ -59,10 +59,9 @@ import com.unifier.univault.vault.UniVaultConfig
 import org.sparkproject.guava.base.CharMatcher
 import org.springframework.http.HttpStatus
 
-import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util
-import java.util.{Arrays, Date}
+import java.util.{Arrays, Date, Properties}
 import java.security.InvalidKeyException
 import java.security.spec.KeySpec
 import javax.crypto.spec.{DESedeKeySpec, SecretKeySpec}
@@ -571,11 +570,25 @@ object AddressServicePipeline {
     }
 
     def writeOverJDBC(sparkSession: SparkSession, validAddWithMappedValidMobileOrEmail: Dataset[ExplodedUniwareShippingPackage]) = {
-      val destJDBCURL: String = "jdbc:mysql://db.address.unicommerce.infra:3306?useSSL=false&useServerPrepStmts=false&rewriteBatchedStatements=true&enabledTLSProtocols=TLSv1.3"
-      val batchSizeForJDBCWrite = "50000"
-      val destTable: String = "turbo.shipping_package_address"
-      val destDBUserName: String = "developer"
-      val destDBPassword: String = "DevelopeR@4#"
+
+      val url = getClass.getResource("application.properties")
+      val properties: Properties = new Properties()
+
+      if (url != null) {
+        val source = Source.fromURL(url)
+        properties.load(source.bufferedReader())
+      }
+      else {
+        println("Properties file cannot be loaded")
+        throw new FileNotFoundException("Properties file cannot be loaded");
+      }
+
+      val destJDBCURL: String = properties.getProperty("unifill.datasource.url") + "?useSSL=false&useServerPrepStmts=false&rewriteBatchedStatements=true&enabledTLSProtocols=TLSv1.3"
+      val batchSizeForJDBCWrite = properties.getProperty("unifill.datasource.batch.size.jdbc.write")
+      val destTable: String = properties.getProperty("unifill.datasource.table")
+      val destDBUserName: String = properties.getProperty("unifill.datasource.username")
+      val destDBPassword: String = properties.getProperty("unifill.datasource.password")
+
       val flattenedDF: DataFrame = validAddWithMappedValidMobileOrEmail.select("enabled", "turbo_created", "turbo_updated", "turbo_mobile", "turbo_email", "uniwareShippingPackage.*").drop(Array("mobile", "email", "notification_mobile", "notification_email"): _*)
       flattenedDF.write.format("jdbc").mode(SaveMode.Append).option("driver", "com.mysql.cj.jdbc.Driver").option("url", destJDBCURL).option("dbtable", destTable).option("batchsize", batchSizeForJDBCWrite).option("rewriteBatchedInserts", true).option("isolationLevel", "NONE").option("user", destDBUserName).option("password", destDBPassword).save()
     }
@@ -793,7 +806,7 @@ object AddressServicePipeline {
 
       val postUnionDF = plainDF.union(decryptedDF)
       println("servername: " + servername + " postUnionDF.count() " + postUnionDF.count())
-      println("servername: " + servername +  "completed PII handling, going for transformWrite")
+      println("servername: " + servername +  " completed PII handling, going for transformWrite")
       transformWrite(postUnionDF, spark, pincodeBroadcast, servername)
     }
 

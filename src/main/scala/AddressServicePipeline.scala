@@ -72,9 +72,50 @@ import java.util.concurrent.TimeUnit
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 
 
-case class UniwareShippingPackage(name: String, mobile: String, notification_mobile: String, email: String, notification_email: String, address_line1: String, address_line2: String, city: String, district: String, state_code: String, country_code: String, pincode: String, uniware_sp_created: String, uniware_sp_updated: String, tenant_code: String, facility_code: String, shipping_package_code: String, channel_source_code: String, shipping_package_uc_status: String, sale_order_code: String, sale_order_uc_status: String, sale_order_turbo_status: String) extends Serializable
-case class ExplodedUniwareShippingPackage(enabled: Boolean, turbo_created: String, turbo_updated: String, turbo_mobile: String, turbo_email: String, uniwareShippingPackage: UniwareShippingPackage) extends Serializable
-case class VaultKey(tenantCode: String, keyAlias: String, vaultKey: String) extends Serializable
+case class UniwareShippingPackage (
+    name: String,
+    mobile: String,
+    notification_mobile: String,
+    email: String,
+    notification_email: String,
+    address_line1: String,
+    address_line2: String,
+    city: String,
+    district: String,
+    state_code: String,
+    country_code: String,
+    pincode: String,
+    uniware_sp_created: String,
+    uniware_sp_updated: String,
+    tenant_code: String,
+    facility_code: String,
+    shipping_package_code: String,
+    channel_source_code: String,
+    shipping_package_uc_status: String,
+    sale_order_code: String,
+    sale_order_uc_status: String,
+    sale_order_turbo_status: String,
+    shipping_provider_source_code: String,
+    shipping_courier: String,
+    payment_method: String,
+    invoice_item_total: Double,
+    soi_count: Int
+) extends Serializable
+
+case class ExplodedUniwareShippingPackage (
+    enabled: Boolean,
+    turbo_created: String,
+    turbo_updated: String,
+    turbo_mobile: String,
+    turbo_email: String,
+    uniwareShippingPackage: UniwareShippingPackage
+) extends Serializable
+
+case class VaultKey (
+    tenantCode: String,
+    keyAlias: String,
+    vaultKey: String
+) extends Serializable
 
 object AddressServicePipeline {
 
@@ -800,7 +841,8 @@ object AddressServicePipeline {
       postDecryptDF.select("name", "mobile", "notification_mobile", "email", "notification_email", "address_line1",
         "address_line2", "city", "district", "state_code", "country_code", "pincode", "uniware_sp_created",
         "uniware_sp_updated", "tenant_code", "facility_code", "shipping_package_code", "channel_source_code",
-        "shipping_package_uc_status", "sale_order_code", "sale_order_uc_status", "sale_order_turbo_status").as[UniwareShippingPackage]
+        "shipping_package_uc_status", "sale_order_code", "sale_order_uc_status", "sale_order_turbo_status",
+        "shipping_provider_source_code", "shipping_courier", "payment_method", "invoice_item_total", "soi_count").as[UniwareShippingPackage]
     }
 
     /**

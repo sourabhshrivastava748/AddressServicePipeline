@@ -294,24 +294,29 @@ object AddressServicePipeline {
       if (isDistrictColAbsent) {
         fetchQuery =
           """(SELECT ad.name,ad.phone AS mobile, so.notification_mobile AS notification_mobile,ad.email AS email,
-            |       so.notification_email  AS notification_email,
-            |       ad.address_line1       AS address_line1,
-            |       ad.address_line2       AS address_line2,
-            |       ad.city                AS city,
-            |       ""                     AS district,
-            |       ad.state_code          AS state_code,
-            |       ad.country_code        AS country_code,
-            |       ad.pincode             AS pincode,
-            |       sp.created             AS uniware_sp_created,
-            |       sp.updated             AS uniware_sp_updated,
-            |       tenant.code            AS tenant_code,
-            |       party.code             AS facility_code,
-            |       sp.code                AS shipping_package_code,
-            |       ""                     AS channel_source_code,
-            |       sp.status_code         AS shipping_package_uc_status,
-            |       so.code                AS sale_order_code,
-            |       so.status_code              AS sale_order_uc_status,
-            |       "UNKNOWN"                   AS sale_order_turbo_status
+            |       so.notification_email         AS notification_email,
+            |       ad.address_line1              AS address_line1,
+            |       ad.address_line2              AS address_line2,
+            |       ad.city                       AS city,
+            |       ""                            AS district,
+            |       ad.state_code                 AS state_code,
+            |       ad.country_code               AS country_code,
+            |       ad.pincode                    AS pincode,
+            |       sp.created                    AS uniware_sp_created,
+            |       sp.updated                    AS uniware_sp_updated,
+            |       tenant.code                   AS tenant_code,
+            |       party.code                    AS facility_code,
+            |       sp.code                       AS shipping_package_code,
+            |       ""                            AS channel_source_code,
+            |       sp.status_code                AS shipping_package_uc_status,
+            |       so.code                       AS sale_order_code,
+            |       so.status_code                AS sale_order_uc_status,
+            |       "UNKNOWN"                     AS sale_order_turbo_status
+            |       spro.shipping_source_code     AS shipping_provider_source_code,
+            |       sp.shipping_courier           AS shipping_courier,
+            |       so.payment_method_code        AS payment_method,
+            |       sum(ii.total)                 AS invoice_item_total,
+            |       sum(ii.quantity)              AS soi_count
             |FROM   shipping_package sp
             |        STRAIGHT_JOIN address_detail ad
             |            ON ad.id = sp.shipping_address_id
@@ -323,6 +328,10 @@ object AddressServicePipeline {
             |            ON facility.id = sp.facility_id
             |        STRAIGHT_JOIN party
             |            ON facility.id = party.id
+            |        LEFT JOIN shipping_provider spro
+            |            ON (spro.code = sp.shipping_provider_code AND spro.tenant_id = so.tenant_id)
+            |        LEFT JOIN invoice_item ii
+            |            ON sp.invoice_id = ii.invoice_id
             | WHERE sp.status_code IN ('CANCELLED','RETURNED','RETURN_ACKNOWLEDGED','RETURN_EXPECTED','SHIPPED','DISPATCHED','MANIFESTED','DELIVERED')
             |       AND
             |        tenant.code NOT IN ('lenskart91', 'lenskartcom77', 'lenskartcom97','myntracom70','myntracom73')
@@ -338,31 +347,37 @@ object AddressServicePipeline {
               |        ad.phone NOT LIKE '*%'
               |       AND
               |        ad.phone NOT IN ( '9999999999', '0000000000', '8888888888','1111111111','9898989898', '0123456789', '1234567890',
-              |                              '0987654321','09999999999' )) as foo""".stripMargin
+              |                              '0987654321','09999999999' )
+              |    GROUP BY sp.code) as foo""".stripMargin
       } else {
         fetchQuery =
           """(SELECT ad.name,
-            |       ad.phone               AS mobile,
-            |       so.notification_mobile AS notification_mobile,
-            |       ad.email               AS email,
-            |       so.notification_email  AS notification_email,
-            |       ad.address_line1       AS address_line1,
-            |       ad.address_line2       AS address_line2,
-            |       ad.city                AS city,
-            |       ad.district            AS district,
-            |       ad.state_code          AS state_code,
-            |       ad.country_code        AS country_code,
-            |       ad.pincode             AS pincode,
-            |       sp.created             AS uniware_sp_created,
-            |       sp.updated             AS uniware_sp_updated,
-            |       tenant.code            AS tenant_code,
-            |       party.code             AS facility_code,
-            |       sp.code                AS shipping_package_code,
-            |       ad.channel_source_code AS channel_source_code,
-            |       sp.status_code         AS shipping_package_uc_status,
-            |       so.code                AS sale_order_code,
-            |       so.status_code              AS sale_order_uc_status,
-            |       "UNKNOWN"                  AS sale_order_turbo_status
+            |       ad.phone                      AS mobile,
+            |       so.notification_mobile        AS notification_mobile,
+            |       ad.email                      AS email,
+            |       so.notification_email         AS notification_email,
+            |       ad.address_line1              AS address_line1,
+            |       ad.address_line2              AS address_line2,
+            |       ad.city                       AS city,
+            |       ad.district                   AS district,
+            |       ad.state_code                 AS state_code,
+            |       ad.country_code               AS country_code,
+            |       ad.pincode                    AS pincode,
+            |       sp.created                    AS uniware_sp_created,
+            |       sp.updated                    AS uniware_sp_updated,
+            |       tenant.code                   AS tenant_code,
+            |       party.code                    AS facility_code,
+            |       sp.code                       AS shipping_package_code,
+            |       ad.channel_source_code        AS channel_source_code,
+            |       sp.status_code                AS shipping_package_uc_status,
+            |       so.code                       AS sale_order_code,
+            |       so.status_code                AS sale_order_uc_status,
+            |       "UNKNOWN"                     AS sale_order_turbo_status
+            |       spro.shipping_source_code     AS shipping_provider_source_code,
+            |       sp.shipping_courier           AS shipping_courier,
+            |       so.payment_method_code        AS payment_method,
+            |       sum(ii.total)                 AS invoice_item_total,
+            |       sum(ii.quantity)              AS soi_count
             |FROM   shipping_package sp
             |        STRAIGHT_JOIN address_detail ad
             |            ON ad.id = sp.shipping_address_id
@@ -374,6 +389,10 @@ object AddressServicePipeline {
             |            ON facility.id = sp.facility_id
             |        STRAIGHT_JOIN party
             |            ON facility.id = party.id
+            |        LEFT JOIN shipping_provider spro
+            |            ON (spro.code = sp.shipping_provider_code AND spro.tenant_id = so.tenant_id)
+            |        LEFT JOIN invoice_item ii
+            |            ON sp.invoice_id = ii.invoice_id
             | WHERE sp.status_code IN ('CANCELLED','RETURNED','RETURN_ACKNOWLEDGED','RETURN_EXPECTED','SHIPPED','DISPATCHED','MANIFESTED','DELIVERED')
             |       AND
             |        tenant.code NOT IN ('lenskart91', 'lenskartcom77', 'lenskartcom97','myntracom70','myntracom73')
@@ -389,7 +408,8 @@ object AddressServicePipeline {
               |        ad.phone NOT LIKE '*%'
               |       AND
               |        ad.phone NOT IN ( '9999999999', '0000000000', '8888888888','1111111111','9898989898', '0123456789', '1234567890',
-              |                              '0987654321','09999999999' )) as foo""".stripMargin
+              |                              '0987654321','09999999999' )
+              |   GROUP BY sp.code) as foo""".stripMargin
       }
       fetchQuery
     }

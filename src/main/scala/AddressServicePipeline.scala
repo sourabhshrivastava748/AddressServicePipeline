@@ -98,7 +98,7 @@ case class UniwareShippingPackage (
     shipping_provider_source_code: String,
     shipping_courier: String,
     payment_method: String,
-    invoice_item_total: Double,
+    invoice_item_total: BigDecimal,
     soi_count: Int
 ) extends Serializable
 

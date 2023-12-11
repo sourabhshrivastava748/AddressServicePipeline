@@ -352,7 +352,7 @@ object AddressServicePipeline {
             |       sp.status_code                AS shipping_package_uc_status,
             |       so.code                       AS sale_order_code,
             |       so.status_code                AS sale_order_uc_status,
-            |       "UNKNOWN"                     AS sale_order_turbo_status
+            |       "UNKNOWN"                     AS sale_order_turbo_status,
             |       spro.shipping_source_code     AS shipping_provider_source_code,
             |       sp.shipping_courier           AS shipping_courier,
             |       so.payment_method_code        AS payment_method,
@@ -413,7 +413,7 @@ object AddressServicePipeline {
             |       sp.status_code                AS shipping_package_uc_status,
             |       so.code                       AS sale_order_code,
             |       so.status_code                AS sale_order_uc_status,
-            |       "UNKNOWN"                     AS sale_order_turbo_status
+            |       "UNKNOWN"                     AS sale_order_turbo_status,
             |       spro.shipping_source_code     AS shipping_provider_source_code,
             |       sp.shipping_courier           AS shipping_courier,
             |       so.payment_method_code        AS payment_method,

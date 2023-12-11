@@ -99,7 +99,7 @@ case class UniwareShippingPackage (
     shipping_courier: String,
     payment_method: String,
     invoice_item_total: BigDecimal,
-    soi_count: Long
+    soi_count: java.lang.Integer
 ) extends Serializable
 
 case class ExplodedUniwareShippingPackage (

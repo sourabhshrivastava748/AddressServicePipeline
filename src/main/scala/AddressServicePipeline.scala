@@ -98,8 +98,8 @@ case class UniwareShippingPackage (
     shipping_provider_source_code: String,
     shipping_courier: String,
     payment_method: String,
-    invoice_item_total: BigDecimal,
-    soi_count: java.lang.Integer
+    gmv: BigDecimal,
+    quantity: java.lang.Integer
 ) extends Serializable
 
 case class ExplodedUniwareShippingPackage (
@@ -356,8 +356,8 @@ object AddressServicePipeline {
             |       spro.shipping_source_code         AS shipping_provider_source_code,
             |       sp.shipping_courier               AS shipping_courier,
             |       so.payment_method_code            AS payment_method,
-            |       sum(ii.total)                     AS invoice_item_total,
-            |       CAST(sum(ii.quantity) AS SIGNED)  AS soi_count
+            |       sum(ii.total)                     AS gmv,
+            |       CAST(sum(ii.quantity) AS SIGNED)  AS quantity
             |FROM   shipping_package sp
             |        STRAIGHT_JOIN address_detail ad
             |            ON ad.id = sp.shipping_address_id
@@ -389,7 +389,8 @@ object AddressServicePipeline {
               |       AND
               |        ad.phone NOT IN ( '9999999999', '0000000000', '8888888888','1111111111','9898989898', '0123456789', '1234567890',
               |                              '0987654321','09999999999' )
-              |    GROUP BY sp.code) as foo""".stripMargin
+              |    GROUP BY sp.code
+              |    HAVING quantity < 50) as foo""".stripMargin
       } else {
         fetchQuery =
           """(SELECT ad.name,
@@ -417,8 +418,8 @@ object AddressServicePipeline {
             |       spro.shipping_source_code         AS shipping_provider_source_code,
             |       sp.shipping_courier               AS shipping_courier,
             |       so.payment_method_code            AS payment_method,
-            |       sum(ii.total)                     AS invoice_item_total,
-            |       CAST(sum(ii.quantity) AS SIGNED)  AS soi_count
+            |       sum(ii.total)                     AS gmv,
+            |       CAST(sum(ii.quantity) AS SIGNED)  AS quantity
             |FROM   shipping_package sp
             |        STRAIGHT_JOIN address_detail ad
             |            ON ad.id = sp.shipping_address_id
@@ -450,7 +451,8 @@ object AddressServicePipeline {
               |       AND
               |        ad.phone NOT IN ( '9999999999', '0000000000', '8888888888','1111111111','9898989898', '0123456789', '1234567890',
               |                              '0987654321','09999999999' )
-              |   GROUP BY sp.code) as foo""".stripMargin
+              |   GROUP BY sp.code
+              |   HAVING quantity < 50) as foo""".stripMargin
       }
       fetchQuery
     }
@@ -842,7 +844,7 @@ object AddressServicePipeline {
         "address_line2", "city", "district", "state_code", "country_code", "pincode", "uniware_sp_created",
         "uniware_sp_updated", "tenant_code", "facility_code", "shipping_package_code", "channel_source_code",
         "shipping_package_uc_status", "sale_order_code", "sale_order_uc_status", "sale_order_turbo_status",
-        "shipping_provider_source_code", "shipping_courier", "payment_method", "invoice_item_total", "soi_count").as[UniwareShippingPackage]
+        "shipping_provider_source_code", "shipping_courier", "payment_method", "gmv", "quantity").as[UniwareShippingPackage]
     }
 
     /**

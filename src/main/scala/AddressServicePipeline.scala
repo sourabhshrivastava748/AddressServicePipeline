@@ -34,7 +34,7 @@ import org.apache.commons.codec.binary.Base64
 import org.apache.spark.sql.functions.udf
 import org.springframework.http.HttpStatus
 
-import java.io.{IOException, Serializable}
+import java.io.{FileNotFoundException, IOException, Serializable}
 import java.util
 import scala.collection.Seq
 import scala.io.Source
@@ -59,10 +59,9 @@ import com.unifier.univault.vault.UniVaultConfig
 import org.sparkproject.guava.base.CharMatcher
 import org.springframework.http.HttpStatus
 
-import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util
-import java.util.{Arrays, Date}
+import java.util.{Arrays, Date, Properties}
 import java.security.InvalidKeyException
 import java.security.spec.KeySpec
 import javax.crypto.spec.{DESedeKeySpec, SecretKeySpec}
@@ -73,9 +72,50 @@ import java.util.concurrent.TimeUnit
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 
 
-case class UniwareShippingPackage(name: String, mobile: String, notification_mobile: String, email: String, notification_email: String, address_line1: String, address_line2: String, city: String, district: String, state_code: String, country_code: String, pincode: String, uniware_sp_created: String, uniware_sp_updated: String, tenant_code: String, facility_code: String, shipping_package_code: String, channel_source_code: String, shipping_package_uc_status: String, sale_order_code: String, sale_order_uc_status: String, sale_order_turbo_status: String) extends Serializable
-case class ExplodedUniwareShippingPackage(enabled: Boolean, turbo_created: String, turbo_updated: String, turbo_mobile: String, turbo_email: String, uniwareShippingPackage: UniwareShippingPackage) extends Serializable
-case class VaultKey(tenantCode: String, keyAlias: String, vaultKey: String) extends Serializable
+case class UniwareShippingPackage (
+    name: String,
+    mobile: String,
+    notification_mobile: String,
+    email: String,
+    notification_email: String,
+    address_line1: String,
+    address_line2: String,
+    city: String,
+    district: String,
+    state_code: String,
+    country_code: String,
+    pincode: String,
+    uniware_sp_created: String,
+    uniware_sp_updated: String,
+    tenant_code: String,
+    facility_code: String,
+    shipping_package_code: String,
+    channel_source_code: String,
+    shipping_package_uc_status: String,
+    sale_order_code: String,
+    sale_order_uc_status: String,
+    sale_order_turbo_status: String,
+    shipping_provider_source_code: String,
+    shipping_courier: String,
+    payment_method: String,
+    gmv: BigDecimal,
+    quantity: java.lang.Integer
+) extends Serializable
+
+case class ExplodedUniwareShippingPackage (
+    enabled: Boolean,
+    turbo_created: String,
+    turbo_updated: String,
+    turbo_mobile: String,
+    turbo_email: String,
+    uniwareShippingPackage: UniwareShippingPackage
+) extends Serializable
+
+case class VaultKey (
+    tenantCode: String,
+    keyAlias: String,
+    vaultKey: String
+) extends Serializable
 
 object AddressServicePipeline {
 
@@ -295,24 +335,29 @@ object AddressServicePipeline {
       if (isDistrictColAbsent) {
         fetchQuery =
           """(SELECT ad.name,ad.phone AS mobile, so.notification_mobile AS notification_mobile,ad.email AS email,
-            |       so.notification_email  AS notification_email,
-            |       ad.address_line1       AS address_line1,
-            |       ad.address_line2       AS address_line2,
-            |       ad.city                AS city,
-            |       ""                     AS district,
-            |       ad.state_code          AS state_code,
-            |       ad.country_code        AS country_code,
-            |       ad.pincode             AS pincode,
-            |       sp.created             AS uniware_sp_created,
-            |       sp.updated             AS uniware_sp_updated,
-            |       tenant.code            AS tenant_code,
-            |       party.code             AS facility_code,
-            |       sp.code                AS shipping_package_code,
-            |       ""                     AS channel_source_code,
-            |       sp.status_code         AS shipping_package_uc_status,
-            |       so.code                AS sale_order_code,
-            |       so.status_code              AS sale_order_uc_status,
-            |       "UNKNOWN"                   AS sale_order_turbo_status
+            |       so.notification_email             AS notification_email,
+            |       ad.address_line1                  AS address_line1,
+            |       ad.address_line2                  AS address_line2,
+            |       ad.city                           AS city,
+            |       ""                                AS district,
+            |       ad.state_code                     AS state_code,
+            |       ad.country_code                   AS country_code,
+            |       ad.pincode                        AS pincode,
+            |       sp.created                        AS uniware_sp_created,
+            |       sp.updated                        AS uniware_sp_updated,
+            |       tenant.code                       AS tenant_code,
+            |       party.code                        AS facility_code,
+            |       sp.code                           AS shipping_package_code,
+            |       ""                                AS channel_source_code,
+            |       sp.status_code                    AS shipping_package_uc_status,
+            |       so.code                           AS sale_order_code,
+            |       so.status_code                    AS sale_order_uc_status,
+            |       "UNKNOWN"                         AS sale_order_turbo_status,
+            |       spro.shipping_source_code         AS shipping_provider_source_code,
+            |       sp.shipping_courier               AS shipping_courier,
+            |       so.payment_method_code            AS payment_method,
+            |       sum(ii.total)                     AS gmv,
+            |       CAST(sum(ii.quantity) AS SIGNED)  AS quantity
             |FROM   shipping_package sp
             |        STRAIGHT_JOIN address_detail ad
             |            ON ad.id = sp.shipping_address_id
@@ -324,6 +369,10 @@ object AddressServicePipeline {
             |            ON facility.id = sp.facility_id
             |        STRAIGHT_JOIN party
             |            ON facility.id = party.id
+            |        LEFT JOIN shipping_provider spro
+            |            ON (spro.code = sp.shipping_provider_code AND spro.tenant_id = so.tenant_id)
+            |        LEFT JOIN invoice_item ii
+            |            ON sp.invoice_id = ii.invoice_id
             | WHERE sp.status_code IN ('CANCELLED','RETURNED','RETURN_ACKNOWLEDGED','RETURN_EXPECTED','SHIPPED','DISPATCHED','MANIFESTED','DELIVERED')
             |       AND
             |        tenant.code NOT IN ('lenskart91', 'lenskartcom77', 'lenskartcom97','myntracom70','myntracom73')
@@ -339,31 +388,38 @@ object AddressServicePipeline {
               |        ad.phone NOT LIKE '*%'
               |       AND
               |        ad.phone NOT IN ( '9999999999', '0000000000', '8888888888','1111111111','9898989898', '0123456789', '1234567890',
-              |                              '0987654321','09999999999' )) as foo""".stripMargin
+              |                              '0987654321','09999999999' )
+              |    GROUP BY sp.code
+              |    HAVING quantity < 50) as foo""".stripMargin
       } else {
         fetchQuery =
           """(SELECT ad.name,
-            |       ad.phone               AS mobile,
-            |       so.notification_mobile AS notification_mobile,
-            |       ad.email               AS email,
-            |       so.notification_email  AS notification_email,
-            |       ad.address_line1       AS address_line1,
-            |       ad.address_line2       AS address_line2,
-            |       ad.city                AS city,
-            |       ad.district            AS district,
-            |       ad.state_code          AS state_code,
-            |       ad.country_code        AS country_code,
-            |       ad.pincode             AS pincode,
-            |       sp.created             AS uniware_sp_created,
-            |       sp.updated             AS uniware_sp_updated,
-            |       tenant.code            AS tenant_code,
-            |       party.code             AS facility_code,
-            |       sp.code                AS shipping_package_code,
-            |       ad.channel_source_code AS channel_source_code,
-            |       sp.status_code         AS shipping_package_uc_status,
-            |       so.code                AS sale_order_code,
-            |       so.status_code              AS sale_order_uc_status,
-            |       "UNKNOWN"                  AS sale_order_turbo_status
+            |       ad.phone                          AS mobile,
+            |       so.notification_mobile            AS notification_mobile,
+            |       ad.email                          AS email,
+            |       so.notification_email             AS notification_email,
+            |       ad.address_line1                  AS address_line1,
+            |       ad.address_line2                  AS address_line2,
+            |       ad.city                           AS city,
+            |       ad.district                       AS district,
+            |       ad.state_code                     AS state_code,
+            |       ad.country_code                   AS country_code,
+            |       ad.pincode                        AS pincode,
+            |       sp.created                        AS uniware_sp_created,
+            |       sp.updated                        AS uniware_sp_updated,
+            |       tenant.code                       AS tenant_code,
+            |       party.code                        AS facility_code,
+            |       sp.code                           AS shipping_package_code,
+            |       ad.channel_source_code            AS channel_source_code,
+            |       sp.status_code                    AS shipping_package_uc_status,
+            |       so.code                           AS sale_order_code,
+            |       so.status_code                    AS sale_order_uc_status,
+            |       "UNKNOWN"                         AS sale_order_turbo_status,
+            |       spro.shipping_source_code         AS shipping_provider_source_code,
+            |       sp.shipping_courier               AS shipping_courier,
+            |       so.payment_method_code            AS payment_method,
+            |       sum(ii.total)                     AS gmv,
+            |       CAST(sum(ii.quantity) AS SIGNED)  AS quantity
             |FROM   shipping_package sp
             |        STRAIGHT_JOIN address_detail ad
             |            ON ad.id = sp.shipping_address_id
@@ -375,6 +431,10 @@ object AddressServicePipeline {
             |            ON facility.id = sp.facility_id
             |        STRAIGHT_JOIN party
             |            ON facility.id = party.id
+            |        LEFT JOIN shipping_provider spro
+            |            ON (spro.code = sp.shipping_provider_code AND spro.tenant_id = so.tenant_id)
+            |        LEFT JOIN invoice_item ii
+            |            ON sp.invoice_id = ii.invoice_id
             | WHERE sp.status_code IN ('CANCELLED','RETURNED','RETURN_ACKNOWLEDGED','RETURN_EXPECTED','SHIPPED','DISPATCHED','MANIFESTED','DELIVERED')
             |       AND
             |        tenant.code NOT IN ('lenskart91', 'lenskartcom77', 'lenskartcom97','myntracom70','myntracom73')
@@ -390,7 +450,9 @@ object AddressServicePipeline {
               |        ad.phone NOT LIKE '*%'
               |       AND
               |        ad.phone NOT IN ( '9999999999', '0000000000', '8888888888','1111111111','9898989898', '0123456789', '1234567890',
-              |                              '0987654321','09999999999' )) as foo""".stripMargin
+              |                              '0987654321','09999999999' )
+              |   GROUP BY sp.code
+              |   HAVING quantity < 50) as foo""".stripMargin
       }
       fetchQuery
     }
@@ -571,11 +633,25 @@ object AddressServicePipeline {
     }
 
     def writeOverJDBC(sparkSession: SparkSession, validAddWithMappedValidMobileOrEmail: Dataset[ExplodedUniwareShippingPackage]) = {
-      val destJDBCURL: String = "jdbc:mysql://db.address.unicommerce.infra:3306?useSSL=false&useServerPrepStmts=false&rewriteBatchedStatements=true&enabledTLSProtocols=TLSv1.3"
-      val batchSizeForJDBCWrite = "50000"
-      val destTable: String = "turbo.shipping_package_address"
-      val destDBUserName: String = "developer"
-      val destDBPassword: String = "DevelopeR@4#"
+
+      val url = getClass.getResource("application.properties")
+      val properties: Properties = new Properties()
+
+      if (url != null) {
+        val source = Source.fromURL(url)
+        properties.load(source.bufferedReader())
+      }
+      else {
+        println("Properties file cannot be loaded")
+        throw new FileNotFoundException("Properties file cannot be loaded");
+      }
+
+      val destJDBCURL: String = properties.getProperty("unifill.datasource.url") + "?useSSL=false&useServerPrepStmts=false&rewriteBatchedStatements=true&enabledTLSProtocols=TLSv1.3"
+      val batchSizeForJDBCWrite = properties.getProperty("unifill.datasource.batch.size.jdbc.write")
+      val destTable: String = properties.getProperty("unifill.datasource.table")
+      val destDBUserName: String = properties.getProperty("unifill.datasource.username")
+      val destDBPassword: String = properties.getProperty("unifill.datasource.password")
+
       val flattenedDF: DataFrame = validAddWithMappedValidMobileOrEmail.select("enabled", "turbo_created", "turbo_updated", "turbo_mobile", "turbo_email", "uniwareShippingPackage.*").drop(Array("mobile", "email", "notification_mobile", "notification_email"): _*)
       flattenedDF.write.format("jdbc").mode(SaveMode.Append).option("driver", "com.mysql.cj.jdbc.Driver").option("url", destJDBCURL).option("dbtable", destTable).option("batchsize", batchSizeForJDBCWrite).option("rewriteBatchedInserts", true).option("isolationLevel", "NONE").option("user", destDBUserName).option("password", destDBPassword).save()
     }
@@ -767,7 +843,8 @@ object AddressServicePipeline {
       postDecryptDF.select("name", "mobile", "notification_mobile", "email", "notification_email", "address_line1",
         "address_line2", "city", "district", "state_code", "country_code", "pincode", "uniware_sp_created",
         "uniware_sp_updated", "tenant_code", "facility_code", "shipping_package_code", "channel_source_code",
-        "shipping_package_uc_status", "sale_order_code", "sale_order_uc_status", "sale_order_turbo_status").as[UniwareShippingPackage]
+        "shipping_package_uc_status", "sale_order_code", "sale_order_uc_status", "sale_order_turbo_status",
+        "shipping_provider_source_code", "shipping_courier", "payment_method", "gmv", "quantity").as[UniwareShippingPackage]
     }
 
     /**
@@ -781,19 +858,19 @@ object AddressServicePipeline {
       println("Starting PII handling, servername: " + servername + " serverDF.count(): " + serverDF.count())
       val condition =  col("mobile").isNotNull and col("mobile").startsWith("cipher:")
       val encryptedDF = serverDF.filter(condition)
-      println("encryptedDF.count() " + encryptedDF.count())
+      println("servername: " + servername + " encryptedDF.count() " + encryptedDF.count())
       val plainDF = serverDF.filter(!condition)
-      println("plainDF.count() " + plainDF.count())
+      println("servername: " + servername + " plainDF.count() " + plainDF.count())
 
       var decryptedDF = sparkSession.emptyDataset[UniwareShippingPackage]
       if(encryptedDF.isEmpty == false) {
         decryptedDF = decryptionProcessing(encryptedDF)
-        println("decryptedDF.count() " + decryptedDF.count())
+        println("servername: " + servername + " decryptedDF.count() " + decryptedDF.count())
       }
 
       val postUnionDF = plainDF.union(decryptedDF)
-      println("postUnionDF.count() " + postUnionDF.count())
-      println("completed PII handling, going for transformWrite")
+      println("servername: " + servername + " postUnionDF.count() " + postUnionDF.count())
+      println("servername: " + servername +  " completed PII handling, going for transformWrite")
       transformWrite(postUnionDF, spark, pincodeBroadcast, servername)
     }
 

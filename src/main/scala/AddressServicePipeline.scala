@@ -56,6 +56,7 @@ import com.unifier.univault.cache.{VaultCredentialsCache, VaultPropertiesCache}
 import com.unifier.univault.encryption.dto.EncryptionKey
 import com.unifier.univault.exception.{UniVaultException, VaultKeyNotFoundException}
 import com.unifier.univault.vault.UniVaultConfig
+import org.apache.spark.SparkConf
 import org.sparkproject.guava.base.CharMatcher
 import org.springframework.http.HttpStatus
 
@@ -633,24 +634,12 @@ object AddressServicePipeline {
     }
 
     def writeOverJDBC(sparkSession: SparkSession, validAddWithMappedValidMobileOrEmail: Dataset[ExplodedUniwareShippingPackage]) = {
-
-      val url = getClass.getResource("application.properties")
-      val properties: Properties = new Properties()
-
-      if (url != null) {
-        val source = Source.fromURL(url)
-        properties.load(source.bufferedReader())
-      }
-      else {
-        println("Properties file cannot be loaded")
-        throw new FileNotFoundException("Properties file cannot be loaded");
-      }
-
-      val destJDBCURL: String = properties.getProperty("unifill.datasource.url") + "?useSSL=false&useServerPrepStmts=false&rewriteBatchedStatements=true&enabledTLSProtocols=TLSv1.3"
-      val batchSizeForJDBCWrite = properties.getProperty("unifill.datasource.batch.size.jdbc.write")
-      val destTable: String = properties.getProperty("unifill.datasource.table")
-      val destDBUserName: String = properties.getProperty("unifill.datasource.username")
-      val destDBPassword: String = properties.getProperty("unifill.datasource.password")
+      val sparkConf: SparkConf = sparkSession.sparkContext.getConf
+      val destJDBCURL: String = sparkConf.get("spark.unifill.datasource.url") + "?useSSL=false&useServerPrepStmts=false&rewriteBatchedStatements=true&enabledTLSProtocols=TLSv1.3"
+      val destTable: String = sparkConf.get("spark.unifill.datasource.table")
+      val destDBUserName: String = sparkConf.get("spark.unifill.datasource.username")
+      val destDBPassword: String = sparkConf.get("spark.unifill.datasource.password")
+      val batchSizeForJDBCWrite = sparkConf.get("spark.unifill.datasource.batch.size.jdbc.write")
 
       val flattenedDF: DataFrame = validAddWithMappedValidMobileOrEmail.select("enabled", "turbo_created", "turbo_updated", "turbo_mobile", "turbo_email", "uniwareShippingPackage.*").drop(Array("mobile", "email", "notification_mobile", "notification_email"): _*)
       flattenedDF.write.format("jdbc").mode(SaveMode.Append).option("driver", "com.mysql.cj.jdbc.Driver").option("url", destJDBCURL).option("dbtable", destTable).option("batchsize", batchSizeForJDBCWrite).option("rewriteBatchedInserts", true).option("isolationLevel", "NONE").option("user", destDBUserName).option("password", destDBPassword).save()

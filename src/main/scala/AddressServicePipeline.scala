@@ -920,17 +920,18 @@ object AddressServicePipeline {
         listThreads.append(thread)
       }
 
-      val terminatedDBSet = readJDBCTerminatedTenants(fromInclusiveDate, tillExclusiveDate, terminatedDBServer)
-      for (dbName: String <- terminatedDBSet) {
-        val thread = new Thread {
-          val uniwareDBUserName = "developer"
-          val uniwareDBPassword = "DevelopeR@4#"
-
-          override def run: Unit = readTransformWrite(uniwareDBUserName, uniwareDBPassword, fromInclusiveDate, tillExclusiveDate, sparkSession, pincodeBroadcast, terminatedDBServer, dbName)
-        }
-        thread.start()
-        listThreads.append(thread)
-      }
+      // Commenting out pulling data from terminated uniware db
+//      val terminatedDBSet = readJDBCTerminatedTenants(fromInclusiveDate, tillExclusiveDate, terminatedDBServer)
+//      for (dbName: String <- terminatedDBSet) {
+//        val thread = new Thread {
+//          val uniwareDBUserName = "developer"
+//          val uniwareDBPassword = "DevelopeR@4#"
+//
+//          override def run: Unit = readTransformWrite(uniwareDBUserName, uniwareDBPassword, fromInclusiveDate, tillExclusiveDate, sparkSession, pincodeBroadcast, terminatedDBServer, dbName)
+//        }
+//        thread.start()
+//        listThreads.append(thread)
+//      }
 
       for (thread <- listThreads) {
         thread.join()

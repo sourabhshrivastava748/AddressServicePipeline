@@ -488,7 +488,15 @@ object AddressServicePipeline {
       var df_withNumPartitions: Dataset[UniwareShippingPackage] = sparkSession.emptyDataset[UniwareShippingPackage]
       if (min != max) {
         val fetchQuery = fetchMobileEmailAddressFromUniwareQuery(userName, password, fromInclusiveDate, tillExclusiveDate, jdbcURL, databaseName)
-        df_withNumPartitions = sparkSession.sqlContext.read.format("jdbc").option("driver", "com.mysql.cj.jdbc.Driver").option("url", jdbcURL).option("user", userName).option("password", password).option("dbtable", fetchQuery).option("fetchSize", fetchSizeForJDBCRead).load().na.fill("").as[UniwareShippingPackage]
+        try {
+          df_withNumPartitions = sparkSession.sqlContext.read.format("jdbc").option("driver", "com.mysql.cj.jdbc.Driver").option("url", jdbcURL).option("user", userName).option("password", password).option("dbtable", fetchQuery).option("fetchSize", fetchSizeForJDBCRead).load().na.fill("").as[UniwareShippingPackage]
+        } catch {
+          case ex: Exception => {
+            println("Exception occurred while reading prod db server : " + servername)
+            ex.printStackTrace()
+            throw ex
+          }
+        }
       }
       df_withNumPartitions
     }

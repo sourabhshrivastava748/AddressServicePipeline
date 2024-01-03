@@ -848,14 +848,17 @@ object AddressServicePipeline {
     def readTransformWrite(userName: String, password: String, fromInclusiveDate: String, tillExclusiveDate: String, spark: SparkSession, pincodeBroadcast: Broadcast[Set[String]], servername: String, databaseName: String) = {
       import spark.sqlContext.implicits._
       //  println("Read Transform write started, servername:" + servername + " databaseName: " + databaseName )
-      val start = System.nanoTime()
+      var start = System.currentTimeMillis()
       val serverDF: Dataset[UniwareShippingPackage] = readUniwareJDBC(userName, password, fromInclusiveDate, tillExclusiveDate, servername, databaseName).as[UniwareShippingPackage]
+      println("Completed readUniwareJDBC for " + servername + " in " + (System.currentTimeMillis() - start)/1000 + " sec")
+
+      start = System.currentTimeMillis()
       println("Starting PII handling, servername: " + servername + " serverDF.count(): " + serverDF.count())
       val condition =  col("mobile").isNotNull and col("mobile").startsWith("cipher:")
       val encryptedDF = serverDF.filter(condition)
-      println("servername: " + servername + " encryptedDF.count() " + encryptedDF.count())
+      //println("servername: " + servername + " encryptedDF.count() " + encryptedDF.count())
       val plainDF = serverDF.filter(!condition)
-      println("servername: " + servername + " plainDF.count() " + plainDF.count())
+      //println("servername: " + servername + " plainDF.count() " + plainDF.count())
 
       var decryptedDF = sparkSession.emptyDataset[UniwareShippingPackage]
       if(encryptedDF.isEmpty == false) {
@@ -866,7 +869,11 @@ object AddressServicePipeline {
       val postUnionDF = plainDF.union(decryptedDF)
       println("servername: " + servername + " postUnionDF.count() " + postUnionDF.count())
       println("servername: " + servername +  " completed PII handling, going for transformWrite")
+      println("Completed PII handling for " + servername + " in " + (System.currentTimeMillis() - start)/1000 + " sec")
+
+      start = System.currentTimeMillis()
       transformWrite(postUnionDF, spark, pincodeBroadcast, servername)
+      println("Completed transformWrite for " + servername + " in " + (System.currentTimeMillis() - start)/1000 + " sec")
     }
 
     def readProdServers(): Set[String] = {

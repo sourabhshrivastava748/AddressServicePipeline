@@ -390,8 +390,7 @@ object AddressServicePipeline {
               |       AND
               |        ad.phone NOT IN ( '9999999999', '0000000000', '8888888888','1111111111','9898989898', '0123456789', '1234567890',
               |                              '0987654321','09999999999' )
-              |    GROUP BY sp.code
-              |    HAVING quantity < 50) as foo""".stripMargin
+              |    GROUP BY sp.code) as foo""".stripMargin
       } else {
         fetchQuery =
           """(SELECT ad.name,
@@ -452,8 +451,7 @@ object AddressServicePipeline {
               |       AND
               |        ad.phone NOT IN ( '9999999999', '0000000000', '8888888888','1111111111','9898989898', '0123456789', '1234567890',
               |                              '0987654321','09999999999' )
-              |   GROUP BY sp.code
-              |   HAVING quantity < 50) as foo""".stripMargin
+              |   GROUP BY sp.code) as foo""".stripMargin
       }
       fetchQuery
     }

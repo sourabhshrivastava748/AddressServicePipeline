@@ -145,7 +145,8 @@ object AddressServicePipeline {
       sparkSession.sql("set spark.sql.legacy.timeParserPolicy=LEGACY")
       //    sparkSession.sparkContext.setLogLevel("DEBUG")
       println("init Time: ", System.nanoTime() - startTime)
-      println("Spark conf: " + sparkSession.sparkContext.getConf.getAll)
+      println("Spark conf: " + sparkSession.sparkContext.getConf.getAll.mkString("Array(", ", ", ")"))
+      sparkSession.sparkContext.getConf.getAll
       sparkSession
     }
 

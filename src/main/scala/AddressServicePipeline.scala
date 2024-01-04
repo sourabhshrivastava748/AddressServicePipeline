@@ -144,8 +144,9 @@ object AddressServicePipeline {
       sparkSession.sparkContext.setLocalProperty("spark.scheduler.allocation.file", "file:///spark/fair.xml")
       sparkSession.sql("set spark.sql.legacy.timeParserPolicy=LEGACY")
       //    sparkSession.sparkContext.setLogLevel("DEBUG")
-      print("init Time: ", System.nanoTime() - startTime)
-      return sparkSession
+      println("init Time: ", System.nanoTime() - startTime)
+      println("Spark conf: " + sparkSession.sparkContext.getConf.getAll)
+      sparkSession
     }
 
     val invalid_phone_type_NotMobile_FIXED_LINE_OR_MOBILE = "NotMobile-FIXED_LINE_OR_MOBILE"

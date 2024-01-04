@@ -910,7 +910,9 @@ object AddressServicePipeline {
      *
      */
     def readTransfromWriteInParallel(fromInclusiveDate: String, tillExclusiveDate: String, excludeServers: Set[String], terminatedDBServer: String) = {
-      val prodServerSet = readProdServers().diff(excludeServers)
+      // val prodServerSet = readProdServers().diff(excludeServers)
+      val prodServerSet = Set("db.ecloud1-in.unicommerce.infra")
+
       val pincodeBroadcast: Broadcast[Set[String]] = readandBroadcastPincodes()
       var listThreads: ListBuffer[Thread] = ListBuffer[Thread]()
 

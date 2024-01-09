@@ -144,8 +144,10 @@ object AddressServicePipeline {
       sparkSession.sparkContext.setLocalProperty("spark.scheduler.allocation.file", "file:///spark/fair.xml")
       sparkSession.sql("set spark.sql.legacy.timeParserPolicy=LEGACY")
       //    sparkSession.sparkContext.setLogLevel("DEBUG")
-      print("init Time: ", System.nanoTime() - startTime)
-      return sparkSession
+      println("init Time: ", System.nanoTime() - startTime)
+      println("Spark conf: " + sparkSession.sparkContext.getConf.getAll.mkString("Array(", ", ", ")"))
+      sparkSession.sparkContext.getConf.getAll
+      sparkSession
     }
 
     val invalid_phone_type_NotMobile_FIXED_LINE_OR_MOBILE = "NotMobile-FIXED_LINE_OR_MOBILE"
@@ -640,12 +642,12 @@ object AddressServicePipeline {
     }
 
     def writeOverJDBC(sparkSession: SparkSession, validAddWithMappedValidMobileOrEmail: Dataset[ExplodedUniwareShippingPackage]) = {
-      val sparkConf: SparkConf = sparkSession.sparkContext.getConf
-      val destJDBCURL: String = sparkConf.get("spark.unifill.datasource.url") + "?useSSL=false&useServerPrepStmts=false&rewriteBatchedStatements=true&enabledTLSProtocols=TLSv1.3"
-      val destTable: String = sparkConf.get("spark.unifill.datasource.table")
-      val destDBUserName: String = sparkConf.get("spark.unifill.datasource.username")
-      val destDBPassword: String = sparkConf.get("spark.unifill.datasource.password")
-      val batchSizeForJDBCWrite = sparkConf.get("spark.unifill.datasource.batch.size.jdbc.write")
+
+      val destJDBCURL: String = "jdbc:mysql://db.address.unicommerce.infra:3306" + "?useSSL=false&useServerPrepStmts=false&rewriteBatchedStatements=true&enabledTLSProtocols=TLSv1.3"
+      val destTable: String = "turbo.shipping_package_address"
+      val destDBUserName: String = "developer"
+      val destDBPassword: String = "DevelopeR@4#"
+      val batchSizeForJDBCWrite: String = "50000"
 
       val flattenedDF: DataFrame = validAddWithMappedValidMobileOrEmail.select("enabled", "turbo_created", "turbo_updated", "turbo_mobile", "turbo_email", "uniwareShippingPackage.*").drop(Array("mobile", "email", "notification_mobile", "notification_email"): _*)
       flattenedDF.write.format("jdbc").mode(SaveMode.Append).option("driver", "com.mysql.cj.jdbc.Driver").option("url", destJDBCURL).option("dbtable", destTable).option("batchsize", batchSizeForJDBCWrite).option("rewriteBatchedInserts", true).option("isolationLevel", "NONE").option("user", destDBUserName).option("password", destDBPassword).save()
@@ -910,8 +912,8 @@ object AddressServicePipeline {
      *
      */
     def readTransfromWriteInParallel(fromInclusiveDate: String, tillExclusiveDate: String, excludeServers: Set[String], terminatedDBServer: String) = {
-      // val prodServerSet = readProdServers().diff(excludeServers)
-      val prodServerSet = Set("db.ecloud1-in.unicommerce.infra")
+      val prodServerSet = readProdServers().diff(excludeServers)
+      // val prodServerSet = Set("db.ecloud1-in.unicommerce.infra")
 
       val pincodeBroadcast: Broadcast[Set[String]] = readandBroadcastPincodes()
       var listThreads: ListBuffer[Thread] = ListBuffer[Thread]()

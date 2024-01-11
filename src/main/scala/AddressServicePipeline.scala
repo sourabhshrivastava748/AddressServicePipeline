@@ -873,9 +873,9 @@ object AddressServicePipeline {
       println("servername: " + servername +  " completed PII handling, going for transformWrite")
       println("Completed PII handling for " + servername + " in " + (System.currentTimeMillis() - start)/1000 + " sec")
 
-      start = System.currentTimeMillis()
-      transformWrite(postUnionDF, spark, pincodeBroadcast, servername)
-      println("Completed transformWrite for " + servername + " in " + (System.currentTimeMillis() - start)/1000 + " sec")
+//      start = System.currentTimeMillis()
+//      transformWrite(postUnionDF, spark, pincodeBroadcast, servername)
+//      println("Completed transformWrite for " + servername + " in " + (System.currentTimeMillis() - start)/1000 + " sec")
     }
 
     def readProdServers(): Set[String] = {

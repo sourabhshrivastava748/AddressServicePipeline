@@ -418,7 +418,7 @@ object AddressServicePipeline {
             |       so.status_code                    AS sale_order_uc_status,
             |       "UNKNOWN"                         AS sale_order_turbo_status,
             |       spro.shipping_source_code         AS shipping_provider_source_code,
-            |       sp.shipping_courier               AS shipping_courier,
+            |       NULL                              AS shipping_courier,
             |       so.payment_method_code            AS payment_method,
             |       sum(ii.total)                     AS gmv,
             |       CAST(sum(ii.quantity) AS SIGNED)  AS quantity
@@ -914,7 +914,7 @@ object AddressServicePipeline {
     def readTransfromWriteInParallel(fromInclusiveDate: String, tillExclusiveDate: String, excludeServers: Set[String], terminatedDBServer: String) = {
       // val prodServerSet = readProdServers().diff(excludeServers)
       // val prodServerSet = Set("db.ecloud1-in.unicommerce.infra")
-      val prodServerSet = excludeServers
+      val prodServerSet = Set("db.myntra-in.unicommerce.infra", "db.lenskart-in.unicommerce.infra")
 
       val pincodeBroadcast: Broadcast[Set[String]] = readandBroadcastPincodes()
       var listThreads: ListBuffer[Thread] = ListBuffer[Thread]()

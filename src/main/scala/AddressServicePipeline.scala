@@ -321,7 +321,7 @@ object AddressServicePipeline {
       var connection: Connection = null
       var isDistrictColAbsent: Boolean = false
       try {
-        val driver = "com.mysql.jdbc.Driver"
+        val driver = "com.mysql.cj.jdbc.Driver"
         Class.forName(driver)
         connection = DriverManager.getConnection(jdbcURL, uniwareDBUserName, uniwareDBPassword)
         val statement = connection.createStatement()
@@ -512,7 +512,7 @@ object AddressServicePipeline {
       var connection: Connection = null
       var terminatedTenantDBSet = scala.collection.mutable.Set[String]()
       try {
-        val driver = "com.mysql.jdbc.Driver"
+        val driver = "com.mysql.cj.jdbc.Driver"
         Class.forName(driver)
         connection = DriverManager.getConnection(jdbcURL, uniwareDBUserName, uniwareDBPassword)
         val statement = connection.createStatement()
@@ -873,9 +873,9 @@ object AddressServicePipeline {
       println("servername: " + servername +  " completed PII handling, going for transformWrite")
       println("Completed PII handling for " + servername + " in " + (System.currentTimeMillis() - start)/1000 + " sec")
 
-//      start = System.currentTimeMillis()
-//      transformWrite(postUnionDF, spark, pincodeBroadcast, servername)
-//      println("Completed transformWrite for " + servername + " in " + (System.currentTimeMillis() - start)/1000 + " sec")
+      start = System.currentTimeMillis()
+      transformWrite(postUnionDF, spark, pincodeBroadcast, servername)
+      println("Completed transformWrite for " + servername + " in " + (System.currentTimeMillis() - start)/1000 + " sec")
     }
 
     def readProdServers(): Set[String] = {

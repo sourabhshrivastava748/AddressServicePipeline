@@ -810,7 +810,7 @@ object AddressServicePipeline {
       val distinct_tenantCode_keyAliasDF: DataFrame = encryptedDF.select("mobile", "tenant_code").repartition(1).
         withColumn("keyAlias", split(col("mobile"), ":").getItem(1)).dropDuplicates("keyAlias", "tenant_code").select("tenant_code", "keyAlias")
       distinct_tenantCode_keyAliasDF.show(truncate = false)
-      println("INSIDE [decryptionProcessing] distinct_tenantCode_keyAliasDF count:" + distinct_tenantCode_keyAliasDF.count())
+      // println("INSIDE [decryptionProcessing] distinct_tenantCode_keyAliasDF count:" + distinct_tenantCode_keyAliasDF.count())
 
       // 2. Fetch vault key and create new dataframe
       var vaultKeySeq: Seq[VaultKey] = Seq[VaultKey]()
@@ -821,11 +821,11 @@ object AddressServicePipeline {
       })
       import sparkSession.sqlContext.implicits._
       val distinct_tenantCode_keyAlias_VaultKeyDF = vaultKeySeq.toDF("tenant_code", "keyAlias", "vaultKey")
-      println("INSIDE [decryptionProcessing] distinct_tenantCode_keyAlias_VaultKeyDF count:" + distinct_tenantCode_keyAlias_VaultKeyDF.count())
+      // println("INSIDE [decryptionProcessing] distinct_tenantCode_keyAlias_VaultKeyDF count:" + distinct_tenantCode_keyAlias_VaultKeyDF.count())
 
       //3. join
       val joinedDF = encryptedDFWithKeyAlias.join(distinct_tenantCode_keyAlias_VaultKeyDF,Seq("tenant_code", "keyAlias"))
-      println("INSIDE [decryptionProcessing] joinedDF count:" + joinedDF.count())
+      // println("INSIDE [decryptionProcessing] joinedDF count:" + joinedDF.count())
       val decryptUDF = udf(decryptionProcessingInternal(_, _))
       joinedDF.select(col("vaultKey"), col("tenant_code"), col("mobile")).show(truncate = false)
       val postDecryptDF = joinedDF.
@@ -855,22 +855,20 @@ object AddressServicePipeline {
       println("Completed readUniwareJDBC for " + servername + " in " + (System.currentTimeMillis() - start)/1000 + " sec")
 
       start = System.currentTimeMillis()
-      println("Starting PII handling, servername: " + servername + " serverDF.count(): " + serverDF.count())
+      // Count queries are expensive. Use wisely
+      // println("Starting PII handling, servername: " + servername + " serverDF.count(): " + serverDF.count())
       val condition =  col("mobile").isNotNull and col("mobile").startsWith("cipher:")
       val encryptedDF = serverDF.filter(condition)
       //println("servername: " + servername + " encryptedDF.count() " + encryptedDF.count())
       val plainDF = serverDF.filter(!condition)
       //println("servername: " + servername + " plainDF.count() " + plainDF.count())
-
       var decryptedDF = sparkSession.emptyDataset[UniwareShippingPackage]
       if(encryptedDF.isEmpty == false) {
         decryptedDF = decryptionProcessing(encryptedDF)
-        println("servername: " + servername + " decryptedDF.count() " + decryptedDF.count())
+        // println("servername: " + servername + " decryptedDF.count() " + decryptedDF.count())
       }
-
       val postUnionDF = plainDF.union(decryptedDF)
-      println("servername: " + servername + " postUnionDF.count() " + postUnionDF.count())
-      println("servername: " + servername +  " completed PII handling, going for transformWrite")
+      // println("servername: " + servername + " postUnionDF.count() " + postUnionDF.count())
       println("Completed PII handling for " + servername + " in " + (System.currentTimeMillis() - start)/1000 + " sec")
 
       start = System.currentTimeMillis()

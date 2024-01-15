@@ -321,7 +321,7 @@ object AddressServicePipeline {
       var connection: Connection = null
       var isDistrictColAbsent: Boolean = false
       try {
-        val driver = "com.mysql.jdbc.Driver"
+        val driver = "com.mysql.cj.jdbc.Driver"
         Class.forName(driver)
         connection = DriverManager.getConnection(jdbcURL, uniwareDBUserName, uniwareDBPassword)
         val statement = connection.createStatement()
@@ -336,6 +336,8 @@ object AddressServicePipeline {
       }
       var fetchQuery = emptyStringBroadcast.value
       if (isDistrictColAbsent) {
+        // Servers with different schema: [db.myntra-in.unicommerce.infra,db.jabongjit-in.unicommerce.infra,db.lenskart-in.unicommerce.infra]
+        // These dont have 3 columns: address_detail.district, address_detail.channel_source_code and shipping_package.shipping_courier
         fetchQuery =
           """(SELECT ad.name,ad.phone AS mobile, so.notification_mobile AS notification_mobile,ad.email AS email,
             |       so.notification_email             AS notification_email,
@@ -357,7 +359,7 @@ object AddressServicePipeline {
             |       so.status_code                    AS sale_order_uc_status,
             |       "UNKNOWN"                         AS sale_order_turbo_status,
             |       spro.shipping_source_code         AS shipping_provider_source_code,
-            |       sp.shipping_courier               AS shipping_courier,
+            |       ""                                AS shipping_courier,
             |       so.payment_method_code            AS payment_method,
             |       sum(ii.total)                     AS gmv,
             |       CAST(sum(ii.quantity) AS SIGNED)  AS quantity
@@ -512,7 +514,7 @@ object AddressServicePipeline {
       var connection: Connection = null
       var terminatedTenantDBSet = scala.collection.mutable.Set[String]()
       try {
-        val driver = "com.mysql.jdbc.Driver"
+        val driver = "com.mysql.cj.jdbc.Driver"
         Class.forName(driver)
         connection = DriverManager.getConnection(jdbcURL, uniwareDBUserName, uniwareDBPassword)
         val statement = connection.createStatement()
@@ -810,7 +812,7 @@ object AddressServicePipeline {
       val distinct_tenantCode_keyAliasDF: DataFrame = encryptedDF.select("mobile", "tenant_code").repartition(1).
         withColumn("keyAlias", split(col("mobile"), ":").getItem(1)).dropDuplicates("keyAlias", "tenant_code").select("tenant_code", "keyAlias")
       distinct_tenantCode_keyAliasDF.show(truncate = false)
-      println("INSIDE [decryptionProcessing] distinct_tenantCode_keyAliasDF count:" + distinct_tenantCode_keyAliasDF.count())
+      // println("INSIDE [decryptionProcessing] distinct_tenantCode_keyAliasDF count:" + distinct_tenantCode_keyAliasDF.count())
 
       // 2. Fetch vault key and create new dataframe
       var vaultKeySeq: Seq[VaultKey] = Seq[VaultKey]()
@@ -821,11 +823,11 @@ object AddressServicePipeline {
       })
       import sparkSession.sqlContext.implicits._
       val distinct_tenantCode_keyAlias_VaultKeyDF = vaultKeySeq.toDF("tenant_code", "keyAlias", "vaultKey")
-      println("INSIDE [decryptionProcessing] distinct_tenantCode_keyAlias_VaultKeyDF count:" + distinct_tenantCode_keyAlias_VaultKeyDF.count())
+      // println("INSIDE [decryptionProcessing] distinct_tenantCode_keyAlias_VaultKeyDF count:" + distinct_tenantCode_keyAlias_VaultKeyDF.count())
 
       //3. join
       val joinedDF = encryptedDFWithKeyAlias.join(distinct_tenantCode_keyAlias_VaultKeyDF,Seq("tenant_code", "keyAlias"))
-      println("INSIDE [decryptionProcessing] joinedDF count:" + joinedDF.count())
+      // println("INSIDE [decryptionProcessing] joinedDF count:" + joinedDF.count())
       val decryptUDF = udf(decryptionProcessingInternal(_, _))
       joinedDF.select(col("vaultKey"), col("tenant_code"), col("mobile")).show(truncate = false)
       val postDecryptDF = joinedDF.
@@ -855,22 +857,20 @@ object AddressServicePipeline {
       println("Completed readUniwareJDBC for " + servername + " in " + (System.currentTimeMillis() - start)/1000 + " sec")
 
       start = System.currentTimeMillis()
-      println("Starting PII handling, servername: " + servername + " serverDF.count(): " + serverDF.count())
+      // Count queries are expensive. Use wisely
+      // println("Starting PII handling, servername: " + servername + " serverDF.count(): " + serverDF.count())
       val condition =  col("mobile").isNotNull and col("mobile").startsWith("cipher:")
       val encryptedDF = serverDF.filter(condition)
       //println("servername: " + servername + " encryptedDF.count() " + encryptedDF.count())
       val plainDF = serverDF.filter(!condition)
       //println("servername: " + servername + " plainDF.count() " + plainDF.count())
-
       var decryptedDF = sparkSession.emptyDataset[UniwareShippingPackage]
       if(encryptedDF.isEmpty == false) {
         decryptedDF = decryptionProcessing(encryptedDF)
-        println("servername: " + servername + " decryptedDF.count() " + decryptedDF.count())
+        // println("servername: " + servername + " decryptedDF.count() " + decryptedDF.count())
       }
-
       val postUnionDF = plainDF.union(decryptedDF)
-      println("servername: " + servername + " postUnionDF.count() " + postUnionDF.count())
-      println("servername: " + servername +  " completed PII handling, going for transformWrite")
+      // println("servername: " + servername + " postUnionDF.count() " + postUnionDF.count())
       println("Completed PII handling for " + servername + " in " + (System.currentTimeMillis() - start)/1000 + " sec")
 
       start = System.currentTimeMillis()
@@ -912,9 +912,10 @@ object AddressServicePipeline {
      *
      */
     def readTransfromWriteInParallel(fromInclusiveDate: String, tillExclusiveDate: String, excludeServers: Set[String], terminatedDBServer: String) = {
-      val prodServerSet = readProdServers().diff(excludeServers)
+      // val prodServerSet = readProdServers().diff(excludeServers)
       // val prodServerSet = Set("db.ecloud1-in.unicommerce.infra")
 
+      val prodServerSet = readProdServers()
       val pincodeBroadcast: Broadcast[Set[String]] = readandBroadcastPincodes()
       var listThreads: ListBuffer[Thread] = ListBuffer[Thread]()
 

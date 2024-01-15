@@ -336,6 +336,8 @@ object AddressServicePipeline {
       }
       var fetchQuery = emptyStringBroadcast.value
       if (isDistrictColAbsent) {
+        // Servers with different schema: [db.myntra-in.unicommerce.infra,db.jabongjit-in.unicommerce.infra,db.lenskart-in.unicommerce.infra]
+        // These dont have 3 columns: address_detail.district, address_detail.channel_source_code and shipping_package.shipping_courier
         fetchQuery =
           """(SELECT ad.name,ad.phone AS mobile, so.notification_mobile AS notification_mobile,ad.email AS email,
             |       so.notification_email             AS notification_email,
@@ -418,7 +420,7 @@ object AddressServicePipeline {
             |       so.status_code                    AS sale_order_uc_status,
             |       "UNKNOWN"                         AS sale_order_turbo_status,
             |       spro.shipping_source_code         AS shipping_provider_source_code,
-            |       ""                                AS shipping_courier,
+            |       sp.shipping_courier               AS shipping_courier,
             |       so.payment_method_code            AS payment_method,
             |       sum(ii.total)                     AS gmv,
             |       CAST(sum(ii.quantity) AS SIGNED)  AS quantity
@@ -912,8 +914,8 @@ object AddressServicePipeline {
     def readTransfromWriteInParallel(fromInclusiveDate: String, tillExclusiveDate: String, excludeServers: Set[String], terminatedDBServer: String) = {
       // val prodServerSet = readProdServers().diff(excludeServers)
       // val prodServerSet = Set("db.ecloud1-in.unicommerce.infra")
-      val prodServerSet = Set("db.myntra-in.unicommerce.infra", "db.lenskart-in.unicommerce.infra")
 
+      val prodServerSet = readProdServers()
       val pincodeBroadcast: Broadcast[Set[String]] = readandBroadcastPincodes()
       var listThreads: ListBuffer[Thread] = ListBuffer[Thread]()
 
